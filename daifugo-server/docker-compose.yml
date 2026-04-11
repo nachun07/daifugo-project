@@ -1,0 +1,8 @@
+version: '3.8'
+services:
+  daifugo-server:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
