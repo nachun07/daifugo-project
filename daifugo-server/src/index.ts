@@ -18,7 +18,13 @@ import { createAdapter } from '@socket.io/redis-adapter'
   app.use('/auth', authRouter)
 
   const server = http.createServer(app)
-  const io = new IOServer(server, { cors: { origin: '*' } })
+  const io = new IOServer(server, { 
+    cors: { 
+      origin: ["https://daihugou-game.vercel.app", "http://localhost:3000"],
+      methods: ["GET", "POST"],
+      credentials: true
+    } 
+  })
 
   const REDIS_URL = process.env.REDIS_URL || 'redis://redis:6379'
   try{
@@ -28,7 +34,7 @@ import { createAdapter } from '@socket.io/redis-adapter'
     io.adapter(createAdapter(pubClient, subClient))
     console.log('Redis adapter connected')
   }catch(e){
-    console.warn('Failed to connect Redis adapter, continuing without it', e)
+    console.warn('Redis adapter skip: ', e instanceof Error ? e.message : e)
   }
 
   app.get('/', (req, res) => res.send('Daifugo server running'))
@@ -36,6 +42,6 @@ import { createAdapter } from '@socket.io/redis-adapter'
   // initialize async handlers
   await setupGameHandlers(io)
 
-  const PORT = process.env.PORT || 4000
-  server.listen(PORT, () => console.log(`Server listening on ${PORT}`))
+  const PORT = Number(process.env.PORT) || 4000
+  server.listen(PORT, '0.0.0.0', () => console.log(`Server listening on port ${PORT}`))
 })()
