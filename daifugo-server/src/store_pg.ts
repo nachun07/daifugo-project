@@ -31,52 +31,68 @@ export async function loadRooms(): Promise<Record<string, any>>{
 }
 
 export async function saveRooms(obj: Record<string, any>){
-  await initDb()
-  const client = await pool.connect()
-  try{
-    await client.query('BEGIN')
-    for(const [code, data] of Object.entries(obj)){
-      await client.query(`INSERT INTO rooms(code,data) VALUES($1,$2) ON CONFLICT(code) DO UPDATE SET data = $2`, [code, data])
+  try {
+    await initDb()
+    const client = await pool.connect()
+    try{
+      await client.query('BEGIN')
+      for(const [code, data] of Object.entries(obj)){
+        await client.query(`INSERT INTO rooms(code,data) VALUES($1,$2) ON CONFLICT(code) DO UPDATE SET data = $2`, [code, data])
+      }
+      await client.query('COMMIT')
+    }catch(e){
+      await client.query('ROLLBACK')
+      console.warn('saveRooms fail:', e)
+    }finally{
+      client.release()
     }
-    await client.query('COMMIT')
-  }catch(e){
-    await client.query('ROLLBACK')
-    throw e
-  }finally{
-    client.release()
+  } catch (e) {
+    console.warn('saveRooms: connection fail', e)
   }
 }
 
 export async function deleteRoom(code:string){
-  await initDb()
-  await pool.query('DELETE FROM rooms WHERE code=$1', [code])
+  try {
+    await initDb()
+    await pool.query('DELETE FROM rooms WHERE code=$1', [code])
+  } catch (e) {
+    console.warn('deleteRoom fail', e)
+  }
 }
 
 // バックアップ保存
 export async function saveRoomsBackup(obj: Record<string, any>, tag: string) {
-  await initDb()
-  const client = await pool.connect()
   try {
-    await client.query('BEGIN')
-    for(const [code, data] of Object.entries(obj)){
-      await client.query(`INSERT INTO rooms_backup(code, data, tag) VALUES($1, $2, $3)`, [code, data, tag])
+    await initDb()
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      for(const [code, data] of Object.entries(obj)){
+        await client.query(`INSERT INTO rooms_backup(code, data, tag) VALUES($1, $2, $3)`, [code, data, tag])
+      }
+      await client.query('COMMIT')
+    } catch(e) {
+      await client.query('ROLLBACK')
+      console.warn('backup fail', e)
+    } finally {
+      client.release()
     }
-    await client.query('COMMIT')
-  } catch(e) {
-    await client.query('ROLLBACK')
-    throw e
-  } finally {
-    client.release()
+  } catch (e) {
+    console.warn('saveBackup: connection fail', e)
   }
 }
 
 // 古いバックアップ削除
 export async function cleanupOldBackups(keep: number) {
-  await initDb()
-  await pool.query(`DELETE FROM rooms_backup WHERE ctid NOT IN (
-    SELECT ctid FROM (
-      SELECT ctid, ROW_NUMBER() OVER (PARTITION BY code ORDER BY tag DESC) as rn FROM rooms_backup
-    ) t WHERE t.rn <= $1
-  )`, [keep])
+  try {
+    await initDb()
+    await pool.query(`DELETE FROM rooms_backup WHERE ctid NOT IN (
+      SELECT ctid FROM (
+        SELECT ctid, ROW_NUMBER() OVER (PARTITION BY code ORDER BY tag DESC) as rn FROM rooms_backup
+      ) t WHERE t.rn <= $1
+    )`, [keep])
+  } catch (e) {
+    console.warn('cleanup fail', e)
+  }
 }
 
