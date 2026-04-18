@@ -12,12 +12,14 @@ const clientSecret = process.env.GITHUB_CLIENT_SECRET || ''
 const callbackURL = process.env.GITHUB_CALLBACK_URL || 'http://localhost:4000/auth/github/callback'
 
 if(clientId && clientSecret){
-  passport.use(new GitHubStrategy({ clientID: clientId, clientSecret, callbackURL },
-    function(accessToken: any, refreshToken: any, profile: any, done: any){
-      // minimal user profile — store at session
-      return done(null, { id: profile.id, username: profile.username || profile.displayName, profile })
-    }
-  ))
+  passport.use(new (GitHubStrategy as any)({ 
+    clientID: clientId, 
+    clientSecret: clientSecret, 
+    callbackURL: callbackURL 
+  },
+  function(accessToken: string, refreshToken: string, profile: any, done: any) {
+    return done(null, { id: profile.id, username: profile.username || profile.displayName, profile });
+  }));
 } else {
   console.warn('GitHub OAuth not configured: GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET missing')
 }
