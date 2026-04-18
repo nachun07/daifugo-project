@@ -21,6 +21,75 @@ async function persistAll(){
   await saveRooms(obj)
 }
 
+function scheduleNextCPU(io: Server, roomCode: string, room: Room){
+  if(!room.state) return;
+  const next = room.state.currentPlayer;
+  const nextPlayer = room.players[next];
+  if(!nextPlayer) return;
+  // If next player is a CPU (id starts with 'cpu-')
+  if(nextPlayer.id.startsWith('cpu-') && !room.state.finished.includes(next)){
+    // Check game not over
+    if(room.state.finished.length < room.state.hands.length - 1){
+      setTimeout(() => {
+        // Re-check state in case it changed
+        const r = inMemory.get(roomCode);
+        if(!r || !r.state) return;
+        if(r.state.currentPlayer !== next) return;
+        // Emit a synthetic cpu_auto action
+        const fakeData = { code: roomCode, type: 'cpu_auto' as const };
+        // Directly process
+        processCPUAuto(io, roomCode, r);
+      }, 700 + Math.random() * 500);
+    }
+  }
+}
+
+async function processCPUAuto(io: Server, roomCode: string, room: Room){
+  if(!room.state) return;
+  const playerIndex = room.state.currentPlayer;
+  const hand = room.state.hands[playerIndex];
+  
+  if(!hand || hand.length === 0 || room.state.finished.includes(playerIndex)){
+    room.state = handlePass(room.state);
+    await persistAll();
+    io.to(roomCode).emit('game_state', { state: room.state });
+    scheduleNextCPU(io, roomCode, room);
+    return;
+  }
+
+  let found = false;
+  const groups: Record<string, Card[]> = {};
+  for(const c of hand){
+    if(!groups[c.rank]) groups[c.rank] = [];
+    groups[c.rank].push(c);
+  }
+
+  const pileLen = room.state.pile.length > 0 
+    ? room.state.pile[room.state.pile.length-1].cards.length 
+    : 0;
+  const targetCounts = pileLen > 0 ? [pileLen] : [1, 2, 3];
+
+  for(const count of targetCounts){
+    for(const [, cards] of Object.entries(groups)){
+      if(cards.length >= count){
+        const selected = cards.slice(0, count);
+        if(isLegalPlay(room.state, hand, selected)){
+          room.state = applyPlay(room.state, playerIndex, selected);
+          found = true;
+          break;
+        }
+      }
+    }
+    if(found) break;
+  }
+
+  if(!found) room.state = handlePass(room.state);
+
+  await persistAll();
+  io.to(roomCode).emit('game_state', { state: room.state });
+  scheduleNextCPU(io, roomCode, room);
+}
+
 export async function setupGameHandlers(io: Server){
   // load persisted rooms
   const persisted = await loadRooms()
@@ -82,6 +151,8 @@ export async function setupGameHandlers(io: Server){
       room.state = initGame(room.players.length)
       await persistAll()
       io.to(data.code).emit('game_state', { state: room.state })
+      // If first player is CPU, auto-chain
+      scheduleNextCPU(io, data.code, room)
     })
 
     socket.on('action', async (data:{code?:string, type:'play'|'pass'|'cpu_auto', cards?: Card[]})=>{
@@ -94,23 +165,57 @@ export async function setupGameHandlers(io: Server){
 
       if(data.type === 'cpu_auto'){
         const hand = room.state.hands[playerIndex];
-        let found = false;
-        // Simple AI: tries single, pair, triple...
-        for(let n=1; n<=4; n++){
-            // brute force single for now
-            for(let i=0; i<hand.length; i++){
-                const selected = [hand[i]];
-                if(isLegalPlay(room.state, hand, selected)){
-                    room.state = applyPlay(room.state, playerIndex, selected);
-                    found = true; break;
-                }
-            }
-            if(found) break;
+        if(!hand || hand.length === 0 || room.state.finished.includes(playerIndex)){
+          // Skip this player
+          room.state = handlePass(room.state);
+          await persistAll();
+          io.to(roomCode as string).emit('game_state', { state: room.state });
+          // Chain: if next is also CPU
+          scheduleNextCPU(io, roomCode as string, room);
+          return;
         }
-        if(!found) room.state = handlePass(room.state);
+
+        let found = false;
         
-        await persistAll()
-        io.to(roomCode as string).emit('game_state', { state: room.state })
+        // Group cards by rank
+        const groups: Record<string, typeof hand> = {};
+        for(const c of hand){
+          const key = c.rank;
+          if(!groups[key]) groups[key] = [];
+          groups[key].push(c);
+        }
+        
+        // Determine how many cards to play (match pile count, or free if pile empty)
+        const pileLen = room.state.pile.length > 0 
+          ? room.state.pile[room.state.pile.length-1].cards.length 
+          : 0;
+        
+        // Try to play matching pile count, or 1 if pile empty
+        const targetCounts = pileLen > 0 ? [pileLen] : [1, 2, 3];
+        
+        for(const count of targetCounts){
+          for(const [rank, cards] of Object.entries(groups)){
+            if(cards.length >= count){
+              const selected = cards.slice(0, count);
+              if(isLegalPlay(room.state, hand, selected)){
+                room.state = applyPlay(room.state, playerIndex, selected);
+                found = true;
+                break;
+              }
+            }
+          }
+          if(found) break;
+        }
+
+        if(!found) {
+          room.state = handlePass(room.state);
+        }
+        
+        await persistAll();
+        io.to(roomCode as string).emit('game_state', { state: room.state });
+        
+        // Chain: auto-trigger next CPU if needed
+        scheduleNextCPU(io, roomCode as string, room);
         return;
       }
 
