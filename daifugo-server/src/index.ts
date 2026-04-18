@@ -11,11 +11,19 @@ import { setupGameHandlers } from './game_v2'
   const io = new IOServer(server, { 
     cors: { 
       origin: "*", 
-      methods: ["GET", "POST"]
-    }
+      methods: ["GET", "POST"],
+      credentials: true
+    },
+    transports: ['polling', 'websocket']
   })
 
-  app.get('/', (req, res) => res.send('Daifugo server is UP and RUNNING'))
+  // Debug logging
+  io.on('connection_error', (err) => {
+    console.log('❌ Connection Error details:', err.req ? 'req present' : 'no req', err.code, err.message, err.context);
+  });
+
+  app.get('/', (req, res) => res.send('Daifugo server is UP and RUNNING (v2.1)'))
+  app.get('/health', (req, res) => res.status(200).send('OK'))
 
   const PORT = Number(process.env.PORT) || 4000
   server.listen(PORT, '0.0.0.0', () => {
