@@ -36,11 +36,21 @@ import { createAdapter } from '@socket.io/redis-adapter'
     console.warn('Redis adapter skip: ', e instanceof Error ? e.message : e)
   }
 
-  app.get('/', (req, res) => res.send('Daifugo server running'))
+  // Manual CORS for all requests
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,POST');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    next();
+  });
 
-  // initialize async handlers
-  await setupGameHandlers(io)
+  app.get('/', (req, res) => res.send('Daifugo server is UP and RUNNING'))
 
   const PORT = Number(process.env.PORT) || 4000
-  server.listen(PORT, '0.0.0.0', () => console.log(`Server listening on port ${PORT}`))
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server listening on port ${PORT}`)
+    
+    // Initialize handlers AFTER starting the server to avoid blocking
+    setupGameHandlers(io).catch(err => console.error('setupGameHandlers error:', err))
+  })
 })()
