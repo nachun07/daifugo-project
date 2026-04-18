@@ -1,10 +1,11 @@
 import { Pool } from 'pg'
 
-const DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@postgres:5432/daifugo'
+const DATABASE_URL = process.env.DATABASE_URL;
 
-const pool = new Pool({ connectionString: DATABASE_URL })
+const pool = DATABASE_URL ? new Pool({ connectionString: DATABASE_URL }) : null;
 
 export async function initDb() {
+  if (!pool) return;
   await pool.query(`CREATE TABLE IF NOT EXISTS rooms (
     code TEXT PRIMARY KEY,
     data JSONB NOT NULL
@@ -19,6 +20,7 @@ export async function initDb() {
 
 export async function loadRooms(): Promise<Record<string, any>>{
   try {
+    if (!pool) return {};
     await initDb()
     const res = await pool.query('SELECT code, data FROM rooms')
     const obj: Record<string, any> = {}
@@ -32,6 +34,7 @@ export async function loadRooms(): Promise<Record<string, any>>{
 
 export async function saveRooms(obj: Record<string, any>){
   try {
+    if (!pool) return;
     await initDb()
     const client = await pool.connect()
     try{
@@ -53,6 +56,7 @@ export async function saveRooms(obj: Record<string, any>){
 
 export async function deleteRoom(code:string){
   try {
+    if (!pool) return;
     await initDb()
     await pool.query('DELETE FROM rooms WHERE code=$1', [code])
   } catch (e) {
@@ -63,6 +67,7 @@ export async function deleteRoom(code:string){
 // バックアップ保存
 export async function saveRoomsBackup(obj: Record<string, any>, tag: string) {
   try {
+    if (!pool) return;
     await initDb()
     const client = await pool.connect()
     try {
@@ -85,6 +90,7 @@ export async function saveRoomsBackup(obj: Record<string, any>, tag: string) {
 // 古いバックアップ削除
 export async function cleanupOldBackups(keep: number) {
   try {
+    if (!pool) return;
     await initDb()
     await pool.query(`DELETE FROM rooms_backup WHERE ctid NOT IN (
       SELECT ctid FROM (
