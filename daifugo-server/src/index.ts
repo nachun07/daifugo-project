@@ -17,6 +17,12 @@ import { createAdapter } from '@socket.io/redis-adapter'
   app.use(passport.session())
   app.use('/auth', authRouter)
 
+  // DEBUG: Log ALL requests to see if anything is coming in
+  app.use((req, res, next) => {
+    console.log(`[DEBUG] Request: ${req.method} ${req.url} from ${req.headers.origin || 'unknown'}`);
+    next();
+  });
+
   const server = http.createServer(app)
   const io = new IOServer(server, { 
     cors: { 
