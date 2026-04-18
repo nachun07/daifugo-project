@@ -9,12 +9,19 @@ import { setupGameHandlers } from './game_v2'
 
   // Minimal CORS
   const io = new IOServer(server, { 
+    path: '/socket.io/', // Explicit path
     cors: { 
       origin: "*", 
       methods: ["GET", "POST"]
     },
-    transports: ['websocket', 'polling']
+    transports: ['websocket', 'polling'],
+    allowEIO3: true // Broad compatibility
   })
+
+  // Direct debug listener
+  io.on('connection', (socket) => {
+    console.log('💚 DIRECT CONNECTION SUCCESS:', socket.id);
+  });
 
   // Debug logging
   io.on('connection_error', (err) => {
