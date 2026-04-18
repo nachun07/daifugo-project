@@ -126,7 +126,7 @@ export async function setupGameHandlers(io: Server){
   }
 
   io.on('connection', (socket: Socket) => {
-    console.log('client connected', socket.id)
+    console.log('🚀 SOCKET_CONNECTED!!! ID:', socket.id)
 
     socket.on('resume', (data:{code:string, playerId:string})=>{
       const room = inMemory.get(data.code)

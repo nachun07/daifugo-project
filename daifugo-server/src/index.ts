@@ -20,9 +20,8 @@ import { createAdapter } from '@socket.io/redis-adapter'
   const server = http.createServer(app)
   const io = new IOServer(server, { 
     cors: { 
-      origin: ["https://daihugou-game.vercel.app", "http://localhost:3000"],
-      methods: ["GET", "POST"],
-      credentials: true
+      origin: "*", 
+      methods: ["GET", "POST"]
     } 
   })
 
