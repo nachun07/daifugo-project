@@ -1,18 +1,6 @@
-{
-  "ZVGOPN": {
+{}  "ZVGOPN": {
     "code": "ZVGOPN",
-    "players": [
-      {
-        "id": "Z-r9TuYZyz2gGVjUAbfm",
-        "name": "i",
-        "playerId": "3ea84788-0657-4107-8148-b572530bd86f"
-      },
-      {
-        "id": "kDE4rC1WeS6foJeMAbfk",
-        "name": "h",
-        "playerId": "e9daa688-62eb-4aad-9a78-1caceea37863"
-      }
-    ],
+    "players": [],
     "state": {
       "hands": [
         [
@@ -291,15 +279,5 @@
       "revolution": false,
       "finished": []
     }
-  },
-  "33KG72": {
-    "code": "33KG72",
-    "players": [
-      {
-        "id": "kDE4rC1WeS6foJeMAbfk",
-        "name": "h",
-        "playerId": "ba3ce614-355d-47f3-a373-5479c8e73656"
-      }
-    ]
   }
 }
