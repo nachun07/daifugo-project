@@ -9,6 +9,12 @@ export async function initDb() {
     code TEXT PRIMARY KEY,
     data JSONB NOT NULL
   )`)
+  await pool.query(`CREATE TABLE IF NOT EXISTS rooms_backup (
+    code TEXT,
+    data JSONB NOT NULL,
+    tag TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`)
 }
 
 export async function loadRooms(): Promise<Record<string, any>>{
@@ -40,3 +46,32 @@ export async function deleteRoom(code:string){
   await initDb()
   await pool.query('DELETE FROM rooms WHERE code=$1', [code])
 }
+
+// バックアップ保存
+export async function saveRoomsBackup(obj: Record<string, any>, tag: string) {
+  await initDb()
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    for(const [code, data] of Object.entries(obj)){
+      await client.query(`INSERT INTO rooms_backup(code, data, tag) VALUES($1, $2, $3)`, [code, data, tag])
+    }
+    await client.query('COMMIT')
+  } catch(e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+// 古いバックアップ削除
+export async function cleanupOldBackups(keep: number) {
+  await initDb()
+  await pool.query(`DELETE FROM rooms_backup WHERE ctid NOT IN (
+    SELECT ctid FROM (
+      SELECT ctid, ROW_NUMBER() OVER (PARTITION BY code ORDER BY tag DESC) as rn FROM rooms_backup
+    ) t WHERE t.rn <= $1
+  )`, [keep])
+}
+
