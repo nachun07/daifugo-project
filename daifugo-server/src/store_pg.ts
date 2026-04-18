@@ -18,11 +18,16 @@ export async function initDb() {
 }
 
 export async function loadRooms(): Promise<Record<string, any>>{
-  await initDb()
-  const res = await pool.query('SELECT code, data FROM rooms')
-  const obj: Record<string, any> = {}
-  for(const row of res.rows){ obj[row.code] = row.data }
-  return obj
+  try {
+    await initDb()
+    const res = await pool.query('SELECT code, data FROM rooms')
+    const obj: Record<string, any> = {}
+    for(const row of res.rows){ obj[row.code] = row.data }
+    return obj
+  } catch (e) {
+    console.warn('Postgres connection failed. Operating in in-memory mode.', e instanceof Error ? e.message : e)
+    return {} // Return empty if DB fails
+  }
 }
 
 export async function saveRooms(obj: Record<string, any>){
