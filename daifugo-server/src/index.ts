@@ -11,10 +11,9 @@ import { setupGameHandlers } from './game_v2'
   const io = new IOServer(server, { 
     cors: { 
       origin: "*", 
-      methods: ["GET", "POST"],
-      credentials: true
+      methods: ["GET", "POST"]
     },
-    transports: ['polling', 'websocket']
+    transports: ['websocket', 'polling']
   })
 
   // Debug logging
